@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bazarım - Peşəkar Ticarət</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyChxQkKpXYJk_MJvro9GdQaZTOzAXdBgs4",
+            authDomain: "bazarim-f3ada.firebaseapp.com",
+            projectId: "bazarim-f3ada",
+            storageBucket: "bazarim-f3ada.firebasestorage.app",
+            messagingSenderId: "9772123031",
+            appId: "1:9772123031:web:a01212c6475c6a28057ad2",
+            measurementId: "G-T6L89SG0N7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Qlobal giriş üçün funksiyaları pəncərəyə bağlayırıq
+        window.db = db;
+        window.dbFuncs = { collection, addDoc, getDocs, doc, updateDoc, query, where, orderBy, limit };
+        
+        // Səhifə yüklənəndə datanı gətir
+        window.dispatchEvent(new Event('firebaseReady'));
+    </script>
+
+    <style>
+        :root {
+            --primary: #FF8C00;
+            --secondary: #FFD700;
+            --dark: #1a1a1a;
+            --light-bg: #f9f9f9;
+            --white: #ffffff;
+            --error: #ff4d4d;
+            --whatsapp: #25D366;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--light-bg);
+            margin: 0;
+            color: var(--dark);
+        }
+
+        /* Xüsusi Təklif Barı */
+        #promo-bar {
+            background: var(--dark);
+            color: var(--secondary);
+            text-align: center;
+            padding: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            display: none;
+        }
+
+        /* Giriş və Qeydiyyat Ekranı */
+        #auth-container {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            padding: 20px;
+        }
+
+        .auth-box {
+            background: var(--white);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            box-sizing: border-box;
+            transition: 0.3s;
+            font-family: inherit;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: var(--dark);
+            color: var(--white);
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn:hover { background: var(--primary); transform: translateY(-2px); }
+
+        /* Ana Sayfa */
+        nav {
+            background: var(--white);
+            padding: 10px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo { font-size: 22px; font-weight: 700; color: var(--primary); text-decoration: none; }
+        .container { padding: 20px 5%; }
+
+        /* Elan Grid */
+        .ad-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px;
+        }
+
+        @media (min-width: 768px) {
+            .ad-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+        }
+
+        .ad-card {
+            background: var(--white);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            border: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        .ad-card img { width: 100%; height: 150px; object-fit: cover; }
+        @media (min-width: 768px) { .ad-card img { height: 200px; } }
+
+        .ad-content { padding: 10px; text-align: center; }
+        .ad-price { font-size: 18px; font-weight: 700; color: var(--primary); }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 10px;
+        }
+        .modal-box {
+            background: var(--white);
+            width: 100%;
+            max-width: 500px;
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .hidden { display: none; }
+        #loading-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:2000; justify-content:center; align-items:center; font-weight:bold; color:var(--primary); }
+    </style>
+</head>
+<body>
+
+<div id="loading-overlay">Gözləyin...</div>
+
+<div id="promo-bar" onclick="requestVIP()">
+    🔥 VİP OL, LİMİTSİZ ELAN PAYLAŞ! CƏMİ 10 AZN
+</div>
+
+<div id="auth-screen">
+    <div id="auth-container">
+        <div id="login-form" class="auth-box">
+            <h2 style="color:var(--primary)">BAZARIM</h2>
+            <input type="text" id="l-user" placeholder="İstifadəçi adı">
+            <input type="password" id="l-pass" placeholder="Şifrə">
+            <button class="btn" onclick="login()">Giriş Et</button>
+            <p>Hesab yoxdur? <a href="#" onclick="toggleAuth('reg')">Qeydiyyat</a></p>
+        </div>
+
+        <div id="register-form" class="auth-box hidden">
+            <h2>Qeydiyyat</h2>
+            <input type="text" id="r-user" placeholder="İstifadəçi adı">
+            <input type="tel" id="r-phone" placeholder="+994XXXXXXXXX">
+            <input type="password" id="r-pass" placeholder="Şifrə">
+            <button class="btn" onclick="register()">Tamamla</button>
+            <button class="btn" style="background:none; color:black; border:1px solid #ccc" onclick="toggleAuth('login')">Geri</button>
+        </div>
+    </div>
+</div>
+
+<div id="main-site" class="hidden">
+    <nav>
+        <a href="#" class="logo" onclick="showSection('home')">BAZARIM</a>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn" style="width: auto; padding: 6px 12px; font-size:14px;" onclick="showSection('add-ad')">Elan +</button>
+            <button class="btn" style="width: auto; padding: 6px 12px; font-size:14px; background:#eee; color:#333;" onclick="showSection('profile')">Profil</button>
+        </div>
+    </nav>
+
+    <div id="section-home" class="container">
+        <div class="ad-grid" id="all-ads">Yüklənir...</div>
+    </div>
+
+    <div id="section-add-ad" class="container hidden">
+        <div class="auth-box" style="max-width: 500px; margin: auto;">
+            <h2>Yeni Elan</h2>
+            <input type="text" id="ad-title" placeholder="Məhsul adı">
+            <textarea id="ad-desc" placeholder="Ətraflı məlumat..."></textarea>
+            <input type="number" id="ad-price" placeholder="Qiymət (AZN)">
+            <input type="file" id="ad-file" accept="image/*">
+            <button class="btn" onclick="postAd()">Paylaş</button>
+        </div>
+    </div>
+
+    <div id="section-profile" class="container hidden">
+        <h2 id="p-name">Profil</h2>
+        <span id="p-id" style="background:#eee; padding:5px 10px; border-radius:5px;">ID</span>
+        <h3 style="margin-top:30px;">Mənim Elanlarım</h3>
+        <div class="ad-grid" id="my-ads"></div>
+        <button class="btn" style="background:red; margin-top:50px;" onclick="logout()">Çıxış</button>
+    </div>
+
+    <div id="section-admin" class="container hidden">
+        <h2>Admin Panel</h2>
+        <input type="text" id="admin-vip-id" placeholder="İstifadəçi ID-si">
+        <button class="btn" onclick="adminMakeVIP()">VİP Təsdiqlə</button>
+    </div>
+</div>
+
+<div id="ad-modal" class="modal">
+    <div class="modal-box" id="modal-content"></div>
+</div>
+
+<div id="secret-admin" style="position:fixed; bottom:5px; right:5px; font-size:8px; color:#ccc; cursor:pointer;" onclick="adminTrigger()">ismayilovismayil</div>
+
+<script>
+    const IMGBB_API_KEY = "22241527a2a7f3bdcf375a46c577ab40";
+    let currentUser = JSON.parse(sessionStorage.getItem('activeUser'));
+
+    window.addEventListener('firebaseReady', () => {
+        if(currentUser) loginSuccess();
+    });
+
+    function toggleAuth(type) {
+        document.getElementById('login-form').classList.toggle('hidden', type === 'reg');
+        document.getElementById('register-form').classList.toggle('hidden', type === 'login');
+    }
+
+    async function register() {
+        const { collection, addDoc, getDocs, query, where } = window.dbFuncs;
+        const user = document.getElementById('r-user').value.trim();
+        const phone = document.getElementById('r-phone').value.trim();
+        const pass = document.getElementById('r-pass').value.trim();
+
+        if(!user || !phone || !pass) return alert("Boşluq buraxmayın!");
+
+        showLoading(true);
+        const q = query(collection(window.db, "users"), where("username", "==", user));
+        const snap = await getDocs(q);
+
+        if(!snap.empty) {
+            showLoading(false);
+            return alert("Bu ad artıq var!");
+        }
+
+        const newUser = {
+            username: user, phone: phone, password: pass,
+            id: 'bazar' + Math.floor(1000 + Math.random() * 9000),
+            isVIP: false, adCount: 0
+        };
+
+        await addDoc(collection(window.db, "users"), newUser);
+        showLoading(false);
+        alert("Uğurlu! Giriş edə bilərsiniz. ID: " + newUser.id);
+        toggleAuth('login');
+    }
+
+    async function login() {
+        const { collection, getDocs, query, where } = window.dbFuncs;
+        const user = document.getElementById('l-user').value;
+        const pass = document.getElementById('l-pass').value;
+
+        showLoading(true);
+        const q = query(collection(window.db, "users"), where("username", "==", user), where("password", "==", pass));
+        const snap = await getDocs(q);
+
+        if(!snap.empty) {
+            currentUser = snap.docs[0].data();
+            currentUser.docId = snap.docs[0].id;
+            sessionStorage.setItem('activeUser', JSON.stringify(currentUser));
+            loginSuccess();
+        } else {
+            alert("Səhv məlumat!");
+        }
+        showLoading(false);
+    }
+
+    function loginSuccess() {
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('main-site').classList.remove('hidden');
+        document.getElementById('promo-bar').style.display = 'block';
+        document.getElementById('p-name').innerText = currentUser.username;
+        document.getElementById('p-id').innerText = currentUser.id;
+        showSection('home');
+    }
+
+    async function postAd() {
+        if(!currentUser.isVIP && currentUser.adCount >= 5) return alert("Limit bitib!");
+        
+        const file = document.getElementById('ad-file').files[0];
+        if(!file) return alert("Şəkil seçin!");
+
+        showLoading(true);
+
+        // ImgBB Upload
+        const formData = new FormData();
+        formData.append("image", file);
+
+        try {
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
+            const data = await res.json();
+            const imageUrl = data.data.url;
+
+            const { collection, addDoc, doc, updateDoc } = window.dbFuncs;
+            await addDoc(collection(window.db, "ads"), {
+                title: document.getElementById('ad-title').value,
+                desc: document.getElementById('ad-desc').value,
+                price: document.getElementById('ad-price').value,
+                img: imageUrl,
+                ownerID: currentUser.id,
+                phone: currentUser.phone,
+                createdAt: new Date()
+            });
+
+            const userRef = doc(window.db, "users", currentUser.docId);
+            await updateDoc(userRef, { adCount: (currentUser.adCount || 0) + 1 });
+            
+            alert("Elan paylaşıldı!");
+            location.reload();
+        } catch (e) {
+            alert("Xəta!");
+        }
+        showLoading(false);
+    }
+
+    async function renderAds(containerId, isProfile = false) {
+        const { collection, getDocs, query, where, orderBy } = window.dbFuncs;
+        const grid = document.getElementById(containerId);
+        grid.innerHTML = "Yüklənir...";
+
+        let q;
+        if(isProfile) {
+            q = query(collection(window.db, "ads"), where("ownerID", "==", currentUser.id));
+        } else {
+            q = query(collection(window.db, "ads"), orderBy("createdAt", "desc"));
+        }
+
+        const snap = await getDocs(q);
+        grid.innerHTML = "";
+        
+        if(snap.empty) grid.innerHTML = "Elan tapılmadı.";
+
+        snap.forEach(doc => {
+            const ad = doc.data();
+            grid.innerHTML += `
+                <div class="ad-card" onclick="openModal('${ad.title}', '${ad.price}', '${ad.desc}', '${ad.img}', '${ad.phone}')">
+                    <img src="${ad.img}" alt="img">
+                    <div class="ad-content">
+                        <h3 style="font-size:14px; margin:5px 0;">${ad.title}</h3>
+                        <div class="ad-price">${ad.price} AZN</div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function openModal(t, p, d, i, ph) {
+        const content = document.getElementById('modal-content');
+        content.innerHTML = `
+            <span style="float:right; cursor:pointer; font-size:24px;" onclick="closeModal()">&times;</span>
+            <img src="${i}" style="width:100%; border-radius:10px; max-height:250px; object-fit:cover;">
+            <h2>${t}</h2>
+            <div class="ad-price">${p} AZN</div>
+            <p style="color:#666">${d}</p>
+            <button class="btn" style="background:var(--whatsapp)" onclick="window.open('https://wa.me/${ph}')">WhatsApp Sifariş</button>
+        `;
+        document.getElementById('ad-modal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('ad-modal').style.display = 'none'; }
+
+    function showSection(id) {
+        document.querySelectorAll('div[id^="section-"]').forEach(s => s.classList.add('hidden'));
+        document.getElementById('section-' + id).classList.remove('hidden');
+        if(id === 'home') renderAds('all-ads');
+        if(id === 'profile') renderAds('my-ads', true);
+    }
+
+    function showLoading(show) { document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none'; }
+    function logout() { sessionStorage.clear(); location.reload(); }
+    function requestVIP() { window.open(`https://wa.me/994773220807?text=${currentUser.id} salam mən vip olmaq istəyirəm`); }
+
+    let clicks = 0;
+    function adminTrigger() {
+        clicks++;
+        if(clicks === 5) {
+            let p = prompt("Admin şifrəsi:");
+            if(p === 'qaqa0202""!') showSection('admin');
+            clicks = 0;
+        }
+    }
+
+    async function adminMakeVIP() {
+        const { collection, getDocs, query, where, doc, updateDoc } = window.dbFuncs;
+        const id = document.getElementById('admin-vip-id').value;
+        const q = query(collection(window.db, "users"), where("id", "==", id));
+        const snap = await getDocs(q);
+        if(!snap.empty) {
+            await updateDoc(doc(window.db, "users", snap.docs[0].id), { isVIP: true });
+            alert("İstifadəçi VIP edildi!");
+        } else alert("Tapılmadı!");
+    }
+</script>
+</body>
+</html>
