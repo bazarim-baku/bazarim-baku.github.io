@@ -24,7 +24,7 @@
         };
 
         const app = initializeApp(SECURE_CONFIG.fb);
-        const db = getFirestore(app, "(default)");
+        const db = getFirestore(app);
 
         window.db = db;
         window.dbFuncs = { collection, addDoc, getDocs, doc, updateDoc, query, where, orderBy, limit };
