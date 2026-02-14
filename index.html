@@ -24,7 +24,6 @@
         };
 
         const app = initializeApp(SECURE_CONFIG.fb);
-        // Bura "(default)" elave edildi ki, baza xetasi aradan qalxin
         const db = getFirestore(app, "(default)");
 
         window.db = db;
@@ -40,25 +39,19 @@
         #promo-bar { background: var(--dark); color: var(--secondary); text-align: center; padding: 10px; font-weight: bold; font-size: 14px; cursor: pointer; display: none; }
         #auth-container { min-height: 100vh; display: flex; justify-content: center; align-items: center; background: linear-gradient(45deg, var(--primary), var(--secondary)); padding: 20px; }
         .auth-box { background: var(--white); padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); width: 100%; max-width: 400px; text-align: center; }
-        input, textarea { width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; }
+        input, textarea, select { width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; }
         .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--dark); color: var(--white); font-weight: 600; cursor: pointer; transition: 0.3s; margin-top: 10px; }
         .btn:hover { background: var(--primary); transform: translateY(-2px); }
         nav { background: var(--white); padding: 10px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
         .logo { font-size: 22px; font-weight: 700; color: var(--primary); text-decoration: none; }
         .container { padding: 20px 5%; }
         .ad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; }
-        @media (min-width: 768px) { .ad-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); } }
         .ad-card { background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #eee; cursor: pointer; }
         .ad-card img { width: 100%; height: 150px; object-fit: cover; }
-        .ad-content { padding: 10px; text-align: center; }
-        .ad-price { font-size: 18px; font-weight: 700; color: var(--primary); }
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 10px; }
         .modal-box { background: var(--white); width: 100%; max-width: 500px; border-radius: 15px; padding: 20px; position: relative; max-height: 90vh; overflow-y: auto; }
         .hidden { display: none; }
         #loading-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:2000; justify-content:center; align-items:center; font-weight:bold; color:var(--primary); }
-        .admin-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
-        .admin-table th, .admin-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        .admin-table th { background: var(--primary); color: white; }
     </style>
 </head>
 <body>
@@ -70,17 +63,18 @@
     <div id="auth-container">
         <div id="login-form" class="auth-box">
             <h2 style="color:var(--primary)">BAZARIM</h2>
-            <input type="text" id="l-user" placeholder="İstifadəçi adı">
+            <p style="font-size: 13px;">Giriş üçün <b>Bazar ID</b> və şifrənizi yazın</p>
+            <input type="text" id="l-bid" placeholder="Bazar ID (məs: bazar1234)">
             <input type="password" id="l-pass" placeholder="Şifrə">
             <button class="btn" onclick="login()">Giriş Et</button>
             <p>Hesab yoxdur? <a href="#" onclick="toggleAuth('reg')">Qeydiyyat</a></p>
         </div>
         <div id="register-form" class="auth-box hidden">
             <h2>Qeydiyyat</h2>
-            <input type="text" id="r-user" placeholder="İstifadəçi adı">
+            <input type="text" id="r-user" placeholder="Ad Soyad">
             <input type="tel" id="r-phone" placeholder="+994XXXXXXXXX">
             <input type="password" id="r-pass" placeholder="Şifrə">
-            <button class="btn" onclick="register()">Tamamla</button>
+            <button class="btn" onclick="register()">Hesab Yarat</button>
             <button class="btn" style="background:none; color:black; border:1px solid #ccc" onclick="toggleAuth('login')">Geri</button>
         </div>
     </div>
@@ -90,13 +84,29 @@
     <nav>
         <a href="#" class="logo" onclick="showSection('home')">BAZARIM</a>
         <div style="display: flex; gap: 8px;">
-            <button class="btn" style="width: auto; padding: 6px 12px;" onclick="showSection('add-ad')">Elan +</button>
+            <button class="btn" style="width: auto; padding: 6px 12px;" onclick="checkShopAndPost()">Elan +</button>
             <button class="btn" style="width: auto; padding: 6px 12px; background:#eee; color:#333;" onclick="showSection('profile')">Profil</button>
         </div>
     </nav>
 
     <div id="section-home" class="container">
         <div class="ad-grid" id="all-ads">Yüklənir...</div>
+    </div>
+
+    <div id="section-setup-shop" class="container hidden">
+        <div class="auth-box" style="max-width: 500px; margin: auto;">
+            <h2 style="color:var(--primary)">Mağaza Qur</h2>
+            <p>Elan paylaşmaq üçün öncə mağaza məlumatlarını doldurmalısınız.</p>
+            <input type="text" id="shop-name" placeholder="Mağaza Adı">
+            <select id="shop-type">
+                <option value="Fiziki Əşya">Fiziki Əşyalar</option>
+                <option value="Aksesuar">Aksesuarlar</option>
+                <option value="Elektronika">Elektronika</option>
+                <option value="Geyim">Geyim</option>
+            </select>
+            <textarea id="shop-desc" placeholder="Nə satacaqsınız? Qısa məlumat..."></textarea>
+            <button class="btn" onclick="saveShop()">Mağazanı Aktivləşdir</button>
+        </div>
     </div>
 
     <div id="section-add-ad" class="container hidden">
@@ -113,6 +123,7 @@
     <div id="section-profile" class="container hidden">
         <h2 id="p-name">Profil</h2>
         <span id="p-id" style="background:#eee; padding:5px 10px; border-radius:5px;">ID</span>
+        <p id="p-shop-status" style="margin-top:10px; color:orange;"></p>
         <h3 style="margin-top:30px;">Mənim Elanlarım</h3>
         <div class="ad-grid" id="my-ads"></div>
         <button class="btn" style="background:red; margin-top:50px;" onclick="logout()">Çıxış</button>
@@ -121,24 +132,8 @@
     <div id="section-admin" class="container hidden">
         <h2>Admin Panel</h2>
         <div class="auth-box" style="max-width: 600px; margin: auto;">
-            <input type="text" id="admin-vip-id" placeholder="İstifadəçi ID-si">
+            <input type="text" id="admin-vip-id" placeholder="Bazar ID-si (məs: bazar1234)">
             <button class="btn" onclick="adminMakeVIP()">VİP Təsdiqlə</button>
-            <h3 style="margin-top:30px;">İstifadəçi Siyahısı</h3>
-            <div style="overflow-x: auto;">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Ad</th>
-                            <th>Telefon</th>
-                            <th>Bazar ID</th>
-                            <th>VIP</th>
-                        </tr>
-                    </thead>
-                    <tbody id="admin-user-list">
-                        <tr><td colspan="4">Yüklənir...</td></tr>
-                    </tbody>
-                </table>
-            </div>
         </div>
     </div>
 </div>
@@ -169,16 +164,14 @@
         const pass = document.getElementById('r-pass').value.trim();
 
         if(!user || !phone || !pass) return alert("Məlumatları doldurun!");
-
         showLoading(true);
-        // Mecburi baglanma: 3 saniye sonra loadingi sondurur ki donub qalmasin
-        setTimeout(() => showLoading(false), 3000);
 
         try {
+            const bID = 'bazar' + Math.floor(1000 + Math.random() * 9000);
             const newUser = {
                 username: user, phone: phone, password: pass,
-                id: 'bazar' + Math.floor(1000 + Math.random() * 9000),
-                isVIP: false, adCount: 0, createdAt: new Date()
+                id: bID, isVIP: false, hasShop: false, 
+                adCount: 0, createdAt: new Date()
             };
 
             const docRef = await addDoc(collection(window.db, "users"), newUser);
@@ -187,52 +180,79 @@
             currentUser = newUser;
             sessionStorage.setItem('activeUser', JSON.stringify(currentUser));
             
-            alert("Uğurlu qeydiyyat!");
+            alert("Uğurlu qeydiyyat! Sizin Giriş ID: " + bID);
             loginSuccess();
-        } catch (err) { 
-            alert("Xəta: Baza hələ hazır deyil və ya internet zəifdir. Yenidən yoxlayın."); 
-        }
+        } catch (err) { alert("Xəta!"); }
+        showLoading(false);
     }
 
     async function login() {
         const { collection, getDocs, query, where, limit } = window.dbFuncs;
-        const user = document.getElementById('l-user').value.trim();
+        const bid = document.getElementById('l-bid').value.trim();
         const pass = document.getElementById('l-pass').value.trim();
 
         showLoading(true);
-        setTimeout(() => showLoading(false), 3000);
-
         try {
-            const q = query(collection(window.db, "users"), where("username", "==", user), where("password", "==", pass), limit(1));
+            const q = query(collection(window.db, "users"), where("id", "==", bid), where("password", "==", pass), limit(1));
             const snap = await getDocs(q);
-            if(snap.empty) throw new Error("Məlumatlar səhvdir!");
+            if(snap.empty) throw new Error("ID və ya Şifrə səhvdir!");
 
             currentUser = snap.docs[0].data();
             currentUser.docId = snap.docs[0].id;
             sessionStorage.setItem('activeUser', JSON.stringify(currentUser));
             loginSuccess();
         } catch (err) { alert(err.message); }
+        showLoading(false);
     }
 
     function loginSuccess() {
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('main-site').classList.remove('hidden');
-        document.getElementById('promo-bar').style.display = 'block';
         document.getElementById('p-name').innerText = currentUser.username;
         document.getElementById('p-id').innerText = currentUser.id;
+        document.getElementById('p-shop-status').innerText = currentUser.hasShop ? "Mağaza: " + currentUser.shopName : "Mağaza qurulmayıb";
         showSection('home');
     }
 
-    async function postAd() {
-        if(!currentUser.isVIP && currentUser.adCount >= 5) return alert("Limitiniz bitib!");
-        const file = document.getElementById('ad-file').files[0];
-        if(!file) return alert("Şəkil mütləqdir!");
+    function checkShopAndPost() {
+        if(!currentUser.hasShop) {
+            alert("Elan paylaşmaq üçün əvvəlcə mağaza qurmalısınız!");
+            showSection('setup-shop');
+        } else {
+            showSection('add-ad');
+        }
+    }
+
+    async function saveShop() {
+        const sName = document.getElementById('shop-name').value.trim();
+        const sType = document.getElementById('shop-type').value;
+        const sDesc = document.getElementById('shop-desc').value.trim();
+
+        if(!sName) return alert("Mağaza adı mütləqdir!");
 
         showLoading(true);
-        const formData = new FormData();
-        formData.append("image", file);
+        try {
+            const { doc, updateDoc } = window.dbFuncs;
+            await updateDoc(doc(window.db, "users", currentUser.docId), {
+                hasShop: true, shopName: sName, shopType: sType, shopDesc: sDesc
+            });
+            currentUser.hasShop = true;
+            currentUser.shopName = sName;
+            sessionStorage.setItem('activeUser', JSON.stringify(currentUser));
+            alert("Mağaza uğurla quruldu!");
+            showSection('add-ad');
+        } catch(e) { alert("Xəta!"); }
+        showLoading(false);
+    }
+
+    async function postAd() {
+        const file = document.getElementById('ad-file').files[0];
+        if(!file) return alert("Şəkil seçin!");
+        showLoading(true);
 
         try {
+            const formData = new FormData();
+            formData.append("image", file);
             const res = await fetch(`https://api.imgbb.com/1/upload?key=${window.IMG_API}`, { method: "POST", body: formData });
             const data = await res.json();
             
@@ -243,21 +263,22 @@
                 price: document.getElementById('ad-price').value,
                 img: data.data.url,
                 ownerID: currentUser.id,
+                shopName: currentUser.shopName,
                 phone: currentUser.phone,
                 createdAt: new Date()
             });
 
             await updateDoc(doc(window.db, "users", currentUser.docId), { adCount: (currentUser.adCount || 0) + 1 });
-            alert("Elan yayımlandı!");
-            location.reload();
-        } catch (e) { alert("Xəta baş verdi!"); }
+            alert("Elan paylaşıldı!");
+            showSection('home');
+        } catch (e) { alert("Xəta!"); }
         showLoading(false);
     }
 
     async function renderAds(containerId, isProfile = false) {
         const { collection, getDocs, query, where } = window.dbFuncs;
         const grid = document.getElementById(containerId);
-        if(!grid) return;
+        grid.innerHTML = "Yüklənir...";
         
         try {
             let q = isProfile ? 
@@ -270,14 +291,15 @@
                 const ad = doc.data();
                 grid.innerHTML += `
                     <div class="ad-card" onclick="openModal('${ad.title}', '${ad.price}', '${ad.desc}', '${ad.img}', '${ad.phone}')">
-                        <img src="${ad.img}" alt="">
-                        <div class="ad-content">
-                            <h3>${ad.title}</h3>
-                            <div class="ad-price">${ad.price} AZN</div>
+                        <img src="${ad.img}">
+                        <div style="padding:10px">
+                            <small style="color:orange">${ad.shopName || ''}</small>
+                            <h3 style="margin:5px 0">${ad.title}</h3>
+                            <div style="color:var(--primary); font-weight:700">${ad.price} AZN</div>
                         </div>
                     </div>`;
             });
-        } catch(e) { grid.innerHTML = "Yükləmə xətası."; }
+        } catch(e) { grid.innerHTML = "Xəta!"; }
     }
 
     function openModal(t, p, d, i, ph) {
@@ -285,64 +307,45 @@
             <span style="float:right; cursor:pointer; font-size:24px;" onclick="closeModal()">&times;</span>
             <img src="${i}" style="width:100%; border-radius:10px;">
             <h2>${t}</h2>
-            <div class="ad-price">${p} AZN</div>
+            <div style="color:var(--primary); font-size:20px; font-weight:700">${p} AZN</div>
             <p>${d}</p>
             <button class="btn" style="background:var(--whatsapp)" onclick="window.open('https://wa.me/${ph}')">WhatsApp</button>`;
         document.getElementById('ad-modal').style.display = 'flex';
     }
 
-    function closeModal() { document.getElementById('ad-modal').style.display = 'none'; }
-    
+    async function adminMakeVIP() {
+        const { collection, getDocs, query, where, doc, updateDoc } = window.dbFuncs;
+        const bID = document.getElementById('admin-vip-id').value.trim();
+        showLoading(true);
+        try {
+            const q = query(collection(window.db, "users"), where("id", "==", bID));
+            const snap = await getDocs(q);
+            if(!snap.empty) {
+                await updateDoc(doc(window.db, "users", snap.docs[0].id), { isVIP: true });
+                alert(bID + " artıq VIP-dir!");
+            } else { alert("Bu ID tapılmadı!"); }
+        } catch(e) { alert("Xəta!"); }
+        showLoading(false);
+    }
+
     function showSection(id) {
         document.querySelectorAll('div[id^="section-"]').forEach(s => s.classList.add('hidden'));
         document.getElementById('section-' + id).classList.remove('hidden');
         if(id === 'home' || id === 'profile') renderAds(id === 'home' ? 'all-ads' : 'my-ads', id === 'profile');
-        if(id === 'admin') loadAdminUsers();
     }
 
+    function closeModal() { document.getElementById('ad-modal').style.display = 'none'; }
     function showLoading(s) { document.getElementById('loading-overlay').style.display = s ? 'flex' : 'none'; }
     function logout() { sessionStorage.clear(); location.reload(); }
-
+    
     let a_clicks = 0;
     function adminTrigger() {
         a_clicks++;
         if(a_clicks === 5) {
-            let p = prompt("Kod:");
+            let p = prompt("Admin kod:");
             if(btoa(p) === "cWFxYTAyMDIiIiE=") showSection('admin'); 
             a_clicks = 0;
         }
-    }
-
-    async function loadAdminUsers() {
-        const { collection, getDocs } = window.dbFuncs;
-        const list = document.getElementById('admin-user-list');
-        list.innerHTML = "Yüklənir...";
-        try {
-            const snap = await getDocs(collection(window.db, "users"));
-            list.innerHTML = "";
-            snap.forEach(doc => {
-                const u = doc.data();
-                list.innerHTML += `
-                    <tr>
-                        <td>${u.username}</td>
-                        <td>${u.phone}</td>
-                        <td>${u.id}</td>
-                        <td>${u.isVIP ? '✅' : '❌'}</td>
-                    </tr>`;
-            });
-        } catch(e) { list.innerHTML = "Xəta!"; }
-    }
-
-    async function adminMakeVIP() {
-        const { collection, getDocs, query, where, doc, updateDoc } = window.dbFuncs;
-        const id = document.getElementById('admin-vip-id').value;
-        const q = query(collection(window.db, "users"), where("id", "==", id));
-        const snap = await getDocs(q);
-        if(!snap.empty) {
-            await updateDoc(doc(window.db, "users", snap.docs[0].id), { isVIP: true });
-            alert("İstifadəçi VIP edildi!");
-            loadAdminUsers();
-        } else alert("Tapılmadı!");
     }
 </script>
 </body>
