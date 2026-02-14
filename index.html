@@ -24,7 +24,8 @@
         };
 
         const app = initializeApp(SECURE_CONFIG.fb);
-        const db = getFirestore(app);
+        // Bura "(default)" elave edildi ki, baza xetasi aradan qalxin
+        const db = getFirestore(app, "(default)");
 
         window.db = db;
         window.dbFuncs = { collection, addDoc, getDocs, doc, updateDoc, query, where, orderBy, limit };
@@ -55,8 +56,6 @@
         .modal-box { background: var(--white); width: 100%; max-width: 500px; border-radius: 15px; padding: 20px; position: relative; max-height: 90vh; overflow-y: auto; }
         .hidden { display: none; }
         #loading-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:2000; justify-content:center; align-items:center; font-weight:bold; color:var(--primary); }
-        
-        /* Admin Table Style */
         .admin-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
         .admin-table th, .admin-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
         .admin-table th { background: var(--primary); color: white; }
@@ -124,7 +123,6 @@
         <div class="auth-box" style="max-width: 600px; margin: auto;">
             <input type="text" id="admin-vip-id" placeholder="İstifadəçi ID-si">
             <button class="btn" onclick="adminMakeVIP()">VİP Təsdiqlə</button>
-            
             <h3 style="margin-top:30px;">İstifadəçi Siyahısı</h3>
             <div style="overflow-x: auto;">
                 <table class="admin-table">
@@ -173,6 +171,9 @@
         if(!user || !phone || !pass) return alert("Məlumatları doldurun!");
 
         showLoading(true);
+        // Mecburi baglanma: 3 saniye sonra loadingi sondurur ki donub qalmasin
+        setTimeout(() => showLoading(false), 3000);
+
         try {
             const newUser = {
                 username: user, phone: phone, password: pass,
@@ -183,16 +184,13 @@
             const docRef = await addDoc(collection(window.db, "users"), newUser);
             newUser.docId = docRef.id;
             
-            // Avtomatik giriş
             currentUser = newUser;
             sessionStorage.setItem('activeUser', JSON.stringify(currentUser));
             
             alert("Uğurlu qeydiyyat!");
-            showLoading(false);
             loginSuccess();
         } catch (err) { 
-            alert("Xəta: " + err.message); 
-            showLoading(false);
+            alert("Xəta: Baza hələ hazır deyil və ya internet zəifdir. Yenidən yoxlayın."); 
         }
     }
 
@@ -202,6 +200,8 @@
         const pass = document.getElementById('l-pass').value.trim();
 
         showLoading(true);
+        setTimeout(() => showLoading(false), 3000);
+
         try {
             const q = query(collection(window.db, "users"), where("username", "==", user), where("password", "==", pass), limit(1));
             const snap = await getDocs(q);
@@ -212,7 +212,6 @@
             sessionStorage.setItem('activeUser', JSON.stringify(currentUser));
             loginSuccess();
         } catch (err) { alert(err.message); }
-        showLoading(false);
     }
 
     function loginSuccess() {
@@ -304,7 +303,6 @@
     function showLoading(s) { document.getElementById('loading-overlay').style.display = s ? 'flex' : 'none'; }
     function logout() { sessionStorage.clear(); location.reload(); }
 
-    // ADMIN FUNKSIYALARI
     let a_clicks = 0;
     function adminTrigger() {
         a_clicks++;
