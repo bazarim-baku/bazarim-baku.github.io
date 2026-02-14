@@ -10,7 +10,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // TEHLUKESIZLIK: Bu melumatlari ayri bir 'env.js' faylinda saxlamaq meslehetdir
         const SECURE_CONFIG = {
             fb: {
                 apiKey: "AIzaSyChxQkKpXYJk_MJvro9GdQaZTOzAXdBgs4",
@@ -27,7 +26,6 @@
         const app = initializeApp(SECURE_CONFIG.fb);
         const db = getFirestore(app);
 
-        // Qlobal funksiyalar
         window.db = db;
         window.dbFuncs = { collection, addDoc, getDocs, doc, updateDoc, query, where, orderBy, limit };
         window.IMG_API = SECURE_CONFIG.imgbb;
@@ -36,7 +34,6 @@
     </script>
 
     <style>
-        /* Movcud stiller qalir... */
         :root { --primary: #FF8C00; --secondary: #FFD700; --dark: #1a1a1a; --light-bg: #f9f9f9; --white: #ffffff; --whatsapp: #25D366; }
         body { font-family: 'Poppins', sans-serif; background-color: var(--light-bg); margin: 0; color: var(--dark); }
         #promo-bar { background: var(--dark); color: var(--secondary); text-align: center; padding: 10px; font-weight: bold; font-size: 14px; cursor: pointer; display: none; }
@@ -58,6 +55,11 @@
         .modal-box { background: var(--white); width: 100%; max-width: 500px; border-radius: 15px; padding: 20px; position: relative; max-height: 90vh; overflow-y: auto; }
         .hidden { display: none; }
         #loading-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:2000; justify-content:center; align-items:center; font-weight:bold; color:var(--primary); }
+        
+        /* Admin Table Style */
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        .admin-table th, .admin-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        .admin-table th { background: var(--primary); color: white; }
     </style>
 </head>
 <body>
@@ -119,8 +121,27 @@
 
     <div id="section-admin" class="container hidden">
         <h2>Admin Panel</h2>
-        <input type="text" id="admin-vip-id" placeholder="İstifadəçi ID-si">
-        <button class="btn" onclick="adminMakeVIP()">VİP Təsdiqlə</button>
+        <div class="auth-box" style="max-width: 600px; margin: auto;">
+            <input type="text" id="admin-vip-id" placeholder="İstifadəçi ID-si">
+            <button class="btn" onclick="adminMakeVIP()">VİP Təsdiqlə</button>
+            
+            <h3 style="margin-top:30px;">İstifadəçi Siyahısı</h3>
+            <div style="overflow-x: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Ad</th>
+                            <th>Telefon</th>
+                            <th>Bazar ID</th>
+                            <th>VIP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-user-list">
+                        <tr><td colspan="4">Yüklənir...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -143,9 +164,8 @@
         document.getElementById('register-form').classList.toggle('hidden', type === 'login');
     }
 
-    // FIREBASE PROSESLERI
     async function register() {
-        const { collection, addDoc, getDocs, query, where } = window.dbFuncs;
+        const { collection, addDoc } = window.dbFuncs;
         const user = document.getElementById('r-user').value.trim();
         const phone = document.getElementById('r-phone').value.trim();
         const pass = document.getElementById('r-pass').value.trim();
@@ -154,31 +174,36 @@
 
         showLoading(true);
         try {
-            const q = query(collection(window.db, "users"), where("username", "==", user));
-            const snap = await getDocs(q);
-            if(!snap.empty) throw new Error("Bu ad artıq mövcuddur!");
-
             const newUser = {
                 username: user, phone: phone, password: pass,
                 id: 'bazar' + Math.floor(1000 + Math.random() * 9000),
-                isVIP: false, adCount: 0
+                isVIP: false, adCount: 0, createdAt: new Date()
             };
 
-            await addDoc(collection(window.db, "users"), newUser);
+            const docRef = await addDoc(collection(window.db, "users"), newUser);
+            newUser.docId = docRef.id;
+            
+            // Avtomatik giriş
+            currentUser = newUser;
+            sessionStorage.setItem('activeUser', JSON.stringify(currentUser));
+            
             alert("Uğurlu qeydiyyat!");
-            toggleAuth('login');
-        } catch (err) { alert(err.message); }
-        showLoading(false);
+            showLoading(false);
+            loginSuccess();
+        } catch (err) { 
+            alert("Xəta: " + err.message); 
+            showLoading(false);
+        }
     }
 
     async function login() {
-        const { collection, getDocs, query, where } = window.dbFuncs;
-        const user = document.getElementById('l-user').value;
-        const pass = document.getElementById('l-pass').value;
+        const { collection, getDocs, query, where, limit } = window.dbFuncs;
+        const user = document.getElementById('l-user').value.trim();
+        const pass = document.getElementById('l-pass').value.trim();
 
         showLoading(true);
         try {
-            const q = query(collection(window.db, "users"), where("username", "==", user), where("password", "==", pass));
+            const q = query(collection(window.db, "users"), where("username", "==", user), where("password", "==", pass), limit(1));
             const snap = await getDocs(q);
             if(snap.empty) throw new Error("Məlumatlar səhvdir!");
 
@@ -231,14 +256,14 @@
     }
 
     async function renderAds(containerId, isProfile = false) {
-        const { collection, getDocs, query, where, orderBy } = window.dbFuncs;
+        const { collection, getDocs, query, where } = window.dbFuncs;
         const grid = document.getElementById(containerId);
         if(!grid) return;
         
         try {
             let q = isProfile ? 
                 query(collection(window.db, "ads"), where("ownerID", "==", currentUser.id)) :
-                query(collection(window.db, "ads")); // Index problemi olmasin deye orderBy-siz qoydum
+                query(collection(window.db, "ads"));
 
             const snap = await getDocs(q);
             grid.innerHTML = snap.empty ? "Elan yoxdur." : "";
@@ -268,25 +293,46 @@
     }
 
     function closeModal() { document.getElementById('ad-modal').style.display = 'none'; }
+    
     function showSection(id) {
         document.querySelectorAll('div[id^="section-"]').forEach(s => s.classList.add('hidden'));
         document.getElementById('section-' + id).classList.remove('hidden');
         if(id === 'home' || id === 'profile') renderAds(id === 'home' ? 'all-ads' : 'my-ads', id === 'profile');
+        if(id === 'admin') loadAdminUsers();
     }
 
     function showLoading(s) { document.getElementById('loading-overlay').style.display = s ? 'flex' : 'none'; }
     function logout() { sessionStorage.clear(); location.reload(); }
 
-    // ADMIN TEHLUKESIZLIK
+    // ADMIN FUNKSIYALARI
     let a_clicks = 0;
     function adminTrigger() {
         a_clicks++;
         if(a_clicks === 5) {
             let p = prompt("Kod:");
-            // Sadə maskalanmış yoxlama
             if(btoa(p) === "cWFxYTAyMDIiIiE=") showSection('admin'); 
             a_clicks = 0;
         }
+    }
+
+    async function loadAdminUsers() {
+        const { collection, getDocs } = window.dbFuncs;
+        const list = document.getElementById('admin-user-list');
+        list.innerHTML = "Yüklənir...";
+        try {
+            const snap = await getDocs(collection(window.db, "users"));
+            list.innerHTML = "";
+            snap.forEach(doc => {
+                const u = doc.data();
+                list.innerHTML += `
+                    <tr>
+                        <td>${u.username}</td>
+                        <td>${u.phone}</td>
+                        <td>${u.id}</td>
+                        <td>${u.isVIP ? '✅' : '❌'}</td>
+                    </tr>`;
+            });
+        } catch(e) { list.innerHTML = "Xəta!"; }
     }
 
     async function adminMakeVIP() {
@@ -297,6 +343,7 @@
         if(!snap.empty) {
             await updateDoc(doc(window.db, "users", snap.docs[0].id), { isVIP: true });
             alert("İstifadəçi VIP edildi!");
+            loadAdminUsers();
         } else alert("Tapılmadı!");
     }
 </script>
